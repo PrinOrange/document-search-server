@@ -3,6 +3,9 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { visit } from "unist-util-visit";
 import remarkGfm from "remark-gfm";
+import { MarkdownElement } from "@/types/markdown.type";
+import remarkStringify from "remark-stringify";
+import type { Root } from "mdast";
 
 /**
  * Compresses multiple spaces into a single space within a string.
@@ -14,8 +17,52 @@ export const compressSpaces = (text: string): string => {
 	return text.replace(/\s+/g, " ");
 };
 
-export const parseMarkdownElements = (text: string) => {
-	// TODO: Finish the markdown elements parser.
+/**
+ * Removes specified Markdown elements from a Markdown string.
+ *
+ * @param markdown - The Markdown string to process.
+ * @param elementsToRemove - An array of MarkdownElement enums specifying which elements to remove.
+ * @returns A new Markdown string with the specified elements removed.
+ */
+export const removeMarkdownElements = (markdown: string, elementsToRemove: MarkdownElement[]): string => {
+  // TODO: Need to be verified.
+  const processor = unified()
+		.use(remarkParse)
+		.use(() => {
+			return (tree: Root) => {
+				visit(tree, (node, index, parent) => {
+					let nodeType: MarkdownElement | undefined;
+					switch (node.type) {
+						case "heading":
+							nodeType = MarkdownElement.heading;
+							break;
+						case "paragraph":
+							nodeType = MarkdownElement.paragraph;
+							break;
+						case "code":
+							nodeType = MarkdownElement.codeblock;
+							break;
+						case "image":
+							nodeType = MarkdownElement.image;
+							break;
+						case "link":
+							nodeType = MarkdownElement.link;
+							break;
+						case "table":
+							nodeType = MarkdownElement.table;
+							break;
+					}
+					if (nodeType !== undefined && elementsToRemove.includes(nodeType)) {
+						if (parent && index == -1) {
+							parent.children.splice(index, 1);
+						}
+					}
+				});
+			};
+		})
+		.use(remarkStringify);
+
+	return processor.processSync(markdown).toString();
 };
 
 /**
